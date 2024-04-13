@@ -1,0 +1,5 @@
+.vscode
+
+*.err
+*.obj
+*.exe
