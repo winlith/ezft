@@ -1,5 +1,9 @@
 #include "types.h"
 
+#define CGA 1
+#define EGA 2
+#define VGA 2
+
 #define BLACK 0x0
 #define BLUE 0x1
 #define GREEN 0x2
@@ -26,6 +30,7 @@ void hideCursor();
 void showCursor();
 void drawChar(char character);
 void drawString(byte x, byte y, char *string);
+void debugPrint(char *format, ...);
 void drawBox(byte x, byte y, byte w, byte h);
 void fillRect(byte x, byte y, byte w, byte h);
 void clearScreen();

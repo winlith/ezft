@@ -2,10 +2,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <stdarg.h>
 #include "vga.h"
 #include "types.h"
 
+byte cursorStart, cursorEnd;
 byte color;
 static unsigned short far *screen;
 static unsigned short screenOffset;
@@ -17,15 +18,10 @@ void vgaInit()
     setColor(WHITE, BLACK);
 }
 
-void setColor(byte forecolor, byte backcolor) //, bool blink)
+void setColor(byte forecolor, byte backcolor)
 {
-    color = forecolor | (backcolor << 4); // | (blink << 7);
+    color = forecolor | (backcolor << 4);
 }
-
-// void setColorRaw(byte rawColor)
-//{
-//     color = rawColor;
-// }
 
 void setPosition(byte x, byte y)
 {
@@ -45,7 +41,12 @@ void setCursorPos(byte x, byte y)
 void hideCursor()
 {
     union REGS regs;
-    regs.h.ah = 0x01; // set cursor type
+    regs.h.ah=0x03;
+    regs.h.bh = 0x00;
+    int86(0x10, &regs, &regs);
+    cursorStart = regs.h.ch;
+    cursorEnd = regs.h.cl;
+    regs.h.ah = 0x01;
     regs.x.cx = 0x2000;
     int86(0x10, &regs, &regs);
 }
@@ -54,8 +55,8 @@ void showCursor()
 {
     union REGS regs;
     regs.h.ah = 0x01;
-    regs.h.ch = 0x0d;
-    regs.h.cl = 0x0e;
+    regs.h.ch = cursorStart;
+    regs.h.cl = cursorEnd;
     int86(0x10, &regs, &regs);
 }
 
@@ -74,11 +75,6 @@ void drawString(byte x, byte y, char *string)
     setPosition(linex, liney);
     for (i = 0; i < len; i++)
     {
-        // if(string[i] == '^')
-        //{
-        //     i++;
-        //     setColorRaw(string[i]);
-        // }
         if (string[i] == '\n')
         {
             liney++;
@@ -92,31 +88,42 @@ void drawString(byte x, byte y, char *string)
     }
 }
 
+void debugPrint(char *format, ...)
+{
+    char msg[80];
+    va_list va;
+    va_start(va, format);
+    vsnprintf(msg, 80, format, va);
+    va_end(va);
+    setColor(PINK, BLACK);
+    drawString(0, 0, msg);
+}
+
 void drawBox(byte x, byte y, byte w, byte h)
 {
     int i;
 
     setPosition(x, y);
-    drawChar('É');
+    drawChar(0xC9);
     setPosition(x + w - 1, y);
-    drawChar('»');
+    drawChar(0xBB);
     setPosition(x, y + h - 1);
-    drawChar('È');
+    drawChar(0xC8);
     setPosition(x + w - 1, y + h - 1);
-    drawChar('¼');
+    drawChar(0xBC);
     for (i = 1; i < w - 1; i++)
     {
         setPosition(x + i, y);
-        drawChar('Í');
+        drawChar(0xCD);
         setPosition(x + i, y + h - 1);
-        drawChar('Í');
+        drawChar(0xCD);
     }
     for (i = 1; i < h - 1; i++)
     {
         setPosition(x, y + i);
-        drawChar('º');
+        drawChar(0xBA);
         setPosition(x + w - 1, y + i);
-        drawChar('º');
+        drawChar(0xBA);
     }
     fillRect(x + 1, y + 1, w - 2, h - 2);
 }
@@ -130,7 +137,7 @@ void fillRect(byte x, byte y, byte w, byte h)
         setPosition(x, y + i);
         for (j = 0; j < w; j++)
         {
-            drawChar(' ');
+            drawChar(0x20);
         }
     }
 }
@@ -141,7 +148,7 @@ void clearScreen()
 
     for (i = 0; i < 80 * 25; i++)
     {
-        screen[i] = (color << 8) | ' ';
+        screen[i] = (color << 8) | 0x20;
     }
 }
 
