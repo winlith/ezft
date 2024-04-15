@@ -85,6 +85,7 @@ byte drive = 0;
 byte tracks = 80;
 byte heads = 2;
 byte sectors = 18;
+char message[30];
 
 char *getErrorMsg(byte error)
 {
@@ -114,16 +115,19 @@ char *getErrorMsg(byte error)
         return "Seek failure.";
     case 0x80:
         return "Time out, drive not ready.";
+    case 0xba:
+        return "Resetting drive error.";
     case 0xff:
         return "Sense operation failed.";
     default:
-        return "Unknown error.";
+        sprintf(message, "Unknown error 0x%02x", error);
+        return &message;
     }
 }
 
 bool isFatal(byte error)
 {
-    if (error == 0x00 || error == 0x02 || error == 0x10)
+    if (error == 0x00 || error == 0x02 || error == 0x04 || error == 0x10)
         return false;
     else
         return true;
@@ -158,17 +162,14 @@ unsigned int compareData(byte *srcData, byte *cmpData)
     return errors;
 }
 
-void resetDisk()
+unsigned short resetDisk()
 {
     union REGS inregs, outregs;
     inregs.h.ah = 0;
     inregs.h.dl = drive;
     int86(0x13, &inregs, &outregs);
 
-    if (outregs.x.cflag != 0)
-    {
-        debugPrint("Error resetting drive %d", drive);
-    }
+    return outregs.x.cflag;
 }
 
 byte readSector(byte track, byte head, byte sector, byte *buffer)
@@ -374,10 +375,11 @@ void runTest()
     setColor(BR_WHITE, BLACK);
     fillRect(32, 11, 15, 9);
     setColor(BR_WHITE, RED);
-    drawBox(16, 11, 48, 4);
+    drawBox(16, 11, 48, 5);
     drawString(36, 11, "WARNING");
     drawString(17, 12, "All data on the floppy disk will be DESTROYED.");
-    drawString(22, 13, "Press ESC to cancel, F2 to continue.");
+    drawString(23, 13, "You will have to format the disk.");
+    drawString(22, 14, "Press ESC to cancel, F2 to continue.");
     while (confirming)
     {
         key = waitForKey();
@@ -396,7 +398,7 @@ void runTest()
     }
 
     setColor(BR_WHITE, BLACK);
-    fillRect(16, 11, 48, 4);
+    fillRect(16, 11, 48, 5);
 
     if (testing)
     {
@@ -404,7 +406,6 @@ void runTest()
         unsigned int seed = time(NULL);
         byte *data = malloc(512 * sizeof(byte));
         byte *buffer = malloc(512 * sizeof(byte));
-        char message[30];
         unsigned int totalSectors = tracks * heads * sectors;
         byte track, head, sector, progressBar;
         byte aborted = false;
@@ -412,8 +413,14 @@ void runTest()
         unsigned int progressPercent;
         unsigned int badSectors = 0;
 
-        resetDisk();
-        error = readSector(0, 0, 1, buffer);
+        if(resetDisk()!=0)
+        {
+            error = 0xba;
+        }
+        else
+        {
+            error = readSector(0, 0, 1, buffer);
+        }
         if (isFatal(error))
         {
             testing = false;
@@ -442,9 +449,11 @@ void runTest()
         srand(seed);
         while (testing && progress < totalSectors)
         {
+            // TODO research optimal progress
             sector = (progress % sectors) + 1;
             head = (progress / sectors) % heads;
             track = (progress / sectors) / heads;
+
             progressPercent = ((unsigned long int)((unsigned long int)progress * (unsigned long int)100u) / totalSectors);
             progressBar = progressPercent / 2;
 
@@ -502,6 +511,7 @@ void runTest()
             sector = (progress % sectors) + 1;
             head = (progress / sectors) % heads;
             track = (progress / sectors) / heads;
+
             progressPercent = ((unsigned long int)((unsigned long int)progress * (unsigned long int)100u) / totalSectors);
             progressBar = progressPercent / 2;
 
@@ -600,6 +610,10 @@ void runTest()
                 drawString(28, 12, message);
             }
         }
+
+        free(data);
+        free(buffer);
+
         drawString(27, 13, "Press any key to continue.");
         waitForKey();
         setColor(BR_WHITE, BLACK);
