@@ -17,6 +17,6 @@ jobs:
         with:
           version: "2.0"
       - run: |
-          echo "INCLUDE=$WATCOM/h" >> "$GITHUB_ENV"
+          echo "INCLUDE=/home/runner/watcom/h" >> "$GITHUB_ENV"
           env
           wmake
