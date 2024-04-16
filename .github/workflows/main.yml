@@ -17,6 +17,4 @@ jobs:
         with:
           version: "2.0"
       - run: |
-          echo "INCLUDE=/home/runner/watcom/h" >> "$GITHUB_ENV"
-          env
-          wmake
+          wcl -i"${{env.WATCOM}}/h" -0 -ml -wx -bt=dos *.c
