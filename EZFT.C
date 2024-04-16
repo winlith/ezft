@@ -449,7 +449,6 @@ void runTest()
         srand(seed);
         while (testing && progress < totalSectors)
         {
-            // TODO research optimal progress
             sector = (progress % sectors) + 1;
             head = (progress / sectors) % heads;
             track = (progress / sectors) / heads;
