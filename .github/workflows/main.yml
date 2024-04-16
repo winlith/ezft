@@ -19,4 +19,4 @@ jobs:
       - run: |
           pwd
       - run: |
-          wmake
+          wmake all
